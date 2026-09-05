@@ -312,6 +312,38 @@ export default function Home() {
     processor.connect(ctx.destination);
   }
 
+  async function summarizeProfile(previousNotes: string, transcript: string): Promise<string> {
+    const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+    if (!apiKey) return previousNotes;
+
+    const prompt = `Mantens una fitxa curta i útil sobre una persona que practica un idioma parlant amb una IA. La fitxa ha de recollir dades que valgui la pena recordar per a properes converses: nom, edat (si l'ha dita), interessos, feina o estudis, temes que li agraden, errors gramaticals que repeteix sovint, nivell aproximat de l'idioma, etc. Ha de ser breu (com a molt 6-8 línies), en català, en forma de notes curtes, no de prosa llarga.
+
+Fitxa actual:
+${previousNotes || "(encara no hi ha res)"}
+
+Transcripció de la conversa d'avui:
+${transcript}
+
+Retorna NOMÉS la fitxa actualitzada (fusiona el que ja hi havia amb el que hagis après avui; si alguna dada antiga ja no té sentit, descarta-la; no repeteixis coses iguals dues vegades).`;
+
+    try {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
+        }
+      );
+      const data = await res.json();
+      const summary = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      return typeof summary === "string" && summary.trim() ? summary.trim() : previousNotes;
+    } catch (err) {
+      console.error("Error resumint el perfil:", err);
+      return previousNotes;
+    }
+  }
+
   async function saveSession() {
     const uid = auth.currentUser?.uid;
     const msgs = messagesRef.current;
@@ -324,18 +356,15 @@ export default function Home() {
         createdAt: serverTimestamp(),
       });
 
-      // Memòria senzilla: guardem un resum cru de la darrera conversa
-      // (no és un resum intel·ligent, però dona continuïtat d'un dia per l'altre).
-      const transcript = msgs.map((m) => `${m.role === "user" ? "Ella" : "IA"}: ${m.text}`).join(" / ");
-      const trimmed = transcript.slice(-3000);
+      const transcript = msgs.map((m) => `${m.role === "user" ? "Ella" : "IA"}: ${m.text}`).join("\n");
+      const updatedNotes = await summarizeProfile(profileRef.current.notes, transcript);
 
-      // Si durant la conversa ha dit el seu nom i encara no el teníem, mira de detectar-lo
-      // de manera molt senzilla (opcional, es pot ajustar sempre a mà des de Firestore).
       await setDoc(
         doc(db, "users", uid),
-        { notes: trimmed, updatedAt: serverTimestamp() },
+        { notes: updatedNotes, updatedAt: serverTimestamp() },
         { merge: true }
       );
+      setProfile((prev) => ({ ...prev, notes: updatedNotes }));
     } catch (err) {
       console.error("Error guardant la sessió:", err);
     }
