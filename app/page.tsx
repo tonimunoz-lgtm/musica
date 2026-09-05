@@ -212,7 +212,7 @@ export default function Home() {
     const ctx = new AudioContext();
     inputCtxRef.current = ctx;
     const source = ctx.createMediaStreamSource(stream);
-    const processor = ctx.createScriptProcessor(4096, 1, 1);
+    const processor = ctx.createScriptProcessor(2048, 1, 1);
     processorRef.current = processor;
 
     processor.onaudioprocess = (e) => {
