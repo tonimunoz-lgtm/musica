@@ -109,7 +109,7 @@ export default function Home() {
   return (
     <div className="app-shell">
       <div className="header">
-        <h1>Xerrup</h1>
+        <h1>Chiacchiera</h1>
         <p>
           Parla en {LANG_LABEL[lang]} i deixa que la conversa creixi.{" "}
           <select
