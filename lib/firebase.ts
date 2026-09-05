@@ -15,8 +15,11 @@ const firebaseConfig = {
 
 const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 
-export const auth = getAuth(app);
-export const db = getFirestore(app);
+// Firebase només s'inicialitza al navegador: durant el "build" de Next.js
+// (prerenderitzat al servidor) no hi ha navegador i, si la clau encara no
+// estigués disponible en aquell moment, Auth petaria tota la construcció.
+export const auth = typeof window !== "undefined" ? getAuth(app) : (null as any);
+export const db = typeof window !== "undefined" ? getFirestore(app) : (null as any);
 
 // Exemple d'estructura de dades a Firestore (Firestore, no Realtime DB):
 // users/{uid}
