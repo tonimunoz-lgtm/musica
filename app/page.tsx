@@ -139,7 +139,7 @@ export default function Home() {
         JSON.stringify({
           setup: {
             model: `models/${MODEL_NAME}`,
-            responseModalities: ["AUDIO"],
+            generationConfig: { responseModalities: ["AUDIO"] },
             systemInstruction: { parts: [{ text: systemPrompt(lang) }] },
             inputAudioTranscription: {},
             outputAudioTranscription: {},
