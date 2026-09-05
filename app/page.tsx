@@ -25,18 +25,25 @@ export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [listening, setListening] = useState(false);
+  const [conversing, setConversing] = useState(false);
   const [loading, setLoading] = useState(false);
   const recognitionRef = useRef<any>(null);
   const threadRef = useRef<HTMLDivElement>(null);
+  const conversingRef = useRef(false); // true mentre estem en bucle de conversa contínua
 
   useEffect(() => {
     threadRef.current?.scrollTo({ top: threadRef.current.scrollHeight, behavior: "smooth" });
   }, [messages]);
 
-  function speak(text: string) {
-    if (typeof window === "undefined" || !window.speechSynthesis) return;
+  function speak(text: string, onDone?: () => void) {
+    if (typeof window === "undefined" || !window.speechSynthesis) {
+      onDone?.();
+      return;
+    }
     const utter = new SpeechSynthesisUtterance(text);
     utter.lang = VOICE_LANG[lang];
+    utter.onend = () => onDone?.();
+    utter.onerror = () => onDone?.();
     window.speechSynthesis.cancel();
     window.speechSynthesis.speak(utter);
   }
@@ -67,9 +74,19 @@ export default function Home() {
     recognition.start();
   }
 
-  function stopListening() {
-    recognitionRef.current?.stop();
-    setListening(false);
+  function toggleConversation() {
+    if (conversingRef.current) {
+      // Atura del tot la conversa contínua
+      conversingRef.current = false;
+      setConversing(false);
+      recognitionRef.current?.stop();
+      window.speechSynthesis?.cancel();
+      setListening(false);
+    } else {
+      conversingRef.current = true;
+      setConversing(true);
+      startListening();
+    }
   }
 
   async function sendMessage(text: string) {
@@ -91,11 +108,16 @@ export default function Home() {
         }),
       });
       const data = await res.json();
-      const reply: string = data.reply ?? "Ho sento, no he pogut respondre ara mateix.";
+      if (!res.ok) {
+        console.error("Error del servidor:", data);
+      }
+      const reply: string = data.reply ?? `Ho sento, no he pogut respondre ara mateix. (${data.detail ?? data.error ?? "error desconegut"})`;
       const correction: string | null = data.correction ?? null;
 
       setMessages((prev) => [...prev, { role: "ai", text: reply, correction }]);
-      speak(reply);
+      speak(reply, () => {
+        if (conversingRef.current) startListening();
+      });
     } catch (err) {
       setMessages((prev) => [
         ...prev,
@@ -148,8 +170,8 @@ export default function Home() {
         <button
           type="button"
           className={`mic ${listening ? "listening" : ""}`}
-          onClick={listening ? stopListening : startListening}
-          aria-label="Parla"
+          onClick={toggleConversation}
+          aria-label={listening ? "Atura la conversa" : "Comença a parlar"}
         >
           {listening ? "■" : "🎙"}
         </button>
@@ -157,7 +179,13 @@ export default function Home() {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && sendMessage(input)}
-          placeholder={`Escriu en ${LANG_LABEL[lang]}...`}
+          placeholder={
+            conversing
+              ? listening
+                ? "T'escolto..."
+                : "Pensant / parlant..."
+              : `Escriu en ${LANG_LABEL[lang]}...`
+          }
         />
         <button
           type="button"
