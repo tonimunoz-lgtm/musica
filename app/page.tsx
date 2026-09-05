@@ -196,8 +196,14 @@ export default function Home() {
       }
     };
 
-    ws.onerror = () => setStatus("idle");
-    ws.onclose = () => setStatus("idle");
+    ws.onerror = (e) => {
+      console.error("WebSocket error:", e);
+      setStatus("idle");
+    };
+    ws.onclose = (e) => {
+      console.error("WebSocket closed. Code:", e.code, "Reason:", e.reason || "(sense motiu explícit)");
+      setStatus("idle");
+    };
   }
 
   async function startMic() {
