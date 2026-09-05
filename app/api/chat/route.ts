@@ -13,8 +13,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(result);
   } catch (err) {
     console.error(err);
+    const detail = err instanceof Error ? err.message : String(err);
     return NextResponse.json(
-      { error: "Error cridant a la IA" },
+      { error: "Error cridant a la IA", detail },
       { status: 500 }
     );
   }
