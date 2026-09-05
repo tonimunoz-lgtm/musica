@@ -1,6 +1,5 @@
 "use client";
 
-
 import { useEffect, useRef, useState } from "react";
 import {
   onAuthStateChanged,
@@ -295,7 +294,7 @@ export default function Home() {
     const ctx = new AudioContext();
     inputCtxRef.current = ctx;
     const source = ctx.createMediaStreamSource(stream);
-    const processor = ctx.createScriptProcessor(2048, 1, 1);
+    const processor = ctx.createScriptProcessor(1024, 1, 1);
     processorRef.current = processor;
 
     processor.onaudioprocess = (e) => {
@@ -403,7 +402,8 @@ Retorna NOMÉS la fitxa actualitzada (fusiona el que ja hi havia amb el que hagi
 
   if (!user) {
     return (
-      <div className="app-shell" style={{ justifyContent: "center", padding: 24 }}>
+      <div className="app-shell" style={{ justifyContent: "center", alignItems: "center", padding: 24 }}>
+        <img src="/icons/icon-192.png" alt="Chiacchiera" style={{ width: 84, height: 84, borderRadius: 20, marginBottom: 12 }} />
         <h1 style={{ fontFamily: "Fraunces, serif", fontSize: 28, marginBottom: 8 }}>Chiacchiera</h1>
         <form onSubmit={handleAuth} style={{ display: "flex", flexDirection: "column", gap: 10, maxWidth: 320 }}>
           {authMode === "signup" && (
