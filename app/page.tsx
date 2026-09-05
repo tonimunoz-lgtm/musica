@@ -229,6 +229,14 @@ export default function Home() {
             systemInstruction: { parts: [{ text: systemPrompt(lang, profileRef.current) }] },
             inputAudioTranscription: {},
             outputAudioTranscription: {},
+            realtimeInputConfig: {
+              automaticActivityDetection: {
+                startOfSpeechSensitivity: "START_SENSITIVITY_HIGH",
+                endOfSpeechSensitivity: "END_SENSITIVITY_HIGH",
+                prefixPaddingMs: 100,
+                silenceDurationMs: 500,
+              },
+            },
           },
         })
       );
