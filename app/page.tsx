@@ -1,37 +1,68 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import {
+  onAuthStateChanged,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
+  type User,
+} from "firebase/auth";
+import { doc, getDoc, setDoc, collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { auth, db } from "@/lib/firebase";
 
 type Lang = "it" | "en";
+type Message = { role: "user" | "ai"; text: string };
+type Profile = { name: string; notes: string };
 
-type Message = {
-  role: "user" | "ai";
-  text: string;
-};
-
-const LANG_LABEL: Record<Lang, string> = {
-  it: "italià",
-  en: "anglès",
-};
+const LANG_LABEL: Record<Lang, string> = { it: "italià", en: "anglès" };
 
 // Model de veu en temps real de Gemini. Consulta
 // ai.google.dev/gemini-api/docs/live-api si Google en publica un altre.
 const MODEL_NAME = "gemini-2.5-flash-native-audio-preview-12-2025";
 
-function systemPrompt(lang: Lang) {
+function systemPrompt(lang: Lang, profile: Profile) {
   const langName = LANG_LABEL[lang];
-  return `Ets una parella de conversa amistosa que ajuda una persona catalanoparlant a practicar ${langName} parlant en veu alta.
+  const memoryBlock = profile.name
+    ? `Ja coneixes aquesta persona: es diu ${profile.name}. Coses de converses anteriors (fes-hi referència si escau, amb naturalitat, no com si llegissis una fitxa): ${
+        profile.notes || "(encara no hi ha gaire historial)"
+      }`
+    : `Encara no saps el nom d'aquesta persona. En algun moment natural de la conversa, pregunta-li com es diu, i recorda-ho per a la resta de la conversa.`;
 
-Regles:
+  return `Ets una parella de conversa amistosa que ajuda una persona catalanoparlant a practicar ${langName} parlant en veu alta. Fas també una mica de professor/a, però mai de manera formal o pesada.
+
+${memoryBlock}
+
+Regles de conversa:
 - Parla SEMPRE en ${langName}, amb un accent natural, com un amic real, no com un professor formal.
 - Comença amb frases curtes i senzilles, i deixa que el tema flueixi de manera natural (d'un "bon dia, com estàs?" es pot arribar a parlar d'història, cultura, plans... sense forçar-ho).
-- Si la persona comet un error de gramàtica o vocabulari rellevant, interromp un moment amb una correcció MOLT breu en català (per exemple: "eh, en italià es diu així...") i després continua la conversa en ${langName}. No corregeixis cada frase, només els errors que valguin la pena.
+- Si la conversa es queda sense suc, o la persona no sap què dir, pren tu la iniciativa: proposa un tema nou, fes una pregunta interessant, no esperis passivament.
+
+Regles de correcció (importants):
+- Si la persona comet un error de gramàtica o vocabulari rellevant, no ho deixis passar de llarg: interromp un moment, breument, en ${langName} si és un error petit (per exemple repetint la frase ben dita de manera natural, com faria un amic), o en català si cal explicar-ho ("eh, això es diu així...").
+- Si no entens bé què ha volgut dir, o la frase no té sentit, reacciona com ho faria una persona real: pregunta’t en veu alta ("volies dir...?", "et refereixes a...?"), no facis veure que ho has entès si no és així.
+- No corregeixis absolutament cada frase — només els errors que valguin la pena, per no trencar el ritme de la conversa.
 - Sona natural: pauses, interjeccions, humor suau. Mai robòtic.`;
 }
 
 export default function Home() {
+  // Auth
+  const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [authMode, setAuthMode] = useState<"login" | "signup">("login");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [authError, setAuthError] = useState<string | null>(null);
+
+  // Profile / memòria
+  const [profile, setProfile] = useState<Profile>({ name: "", notes: "" });
+  const profileRef = useRef<Profile>({ name: "", notes: "" });
+
+  // Conversa
   const [lang, setLang] = useState<Lang>("it");
   const [messages, setMessages] = useState<Message[]>([]);
+  const messagesRef = useRef<Message[]>([]);
   const [status, setStatus] = useState<"idle" | "connecting" | "listening" | "speaking">("idle");
   const threadRef = useRef<HTMLDivElement>(null);
 
@@ -50,9 +81,64 @@ export default function Home() {
   }, [messages]);
 
   useEffect(() => {
-    return () => disconnect();
+    messagesRef.current = messages;
+  }, [messages]);
+
+  useEffect(() => {
+    profileRef.current = profile;
+  }, [profile]);
+
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, async (u) => {
+      setUser(u);
+      setAuthLoading(false);
+      if (u) await loadProfile(u.uid);
+    });
+    return () => {
+      unsub();
+      disconnect();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  async function loadProfile(uid: string) {
+    try {
+      const snap = await getDoc(doc(db, "users", uid));
+      if (snap.exists()) {
+        const data = snap.data();
+        setProfile({ name: data.name ?? "", notes: data.notes ?? "" });
+      }
+    } catch (err) {
+      console.error("Error carregant el perfil:", err);
+    }
+  }
+
+  async function handleAuth(e: React.FormEvent) {
+    e.preventDefault();
+    setAuthError(null);
+    try {
+      if (authMode === "signup") {
+        const cred = await createUserWithEmailAndPassword(auth, email, password);
+        await setDoc(doc(db, "users", cred.user.uid), {
+          name: name.trim(),
+          notes: "",
+          createdAt: serverTimestamp(),
+        });
+      } else {
+        await signInWithEmailAndPassword(auth, email, password);
+      }
+    } catch (err: any) {
+      setAuthError(err.message ?? "Error d'autenticació");
+    }
+  }
+
+  async function handleLogout() {
+    disconnect();
+    await signOut(auth);
+    setMessages([]);
+  }
+
+  // --- Àudio: conversió i reproducció ---
 
   function floatTo16BitPCM(input: Float32Array): Int16Array {
     const output = new Int16Array(input.length);
@@ -68,9 +154,7 @@ export default function Home() {
     const ratio = inputRate / 16000;
     const newLength = Math.round(buffer.length / ratio);
     const result = new Float32Array(newLength);
-    for (let i = 0; i < newLength; i++) {
-      result[i] = buffer[Math.floor(i * ratio)];
-    }
+    for (let i = 0; i < newLength; i++) result[i] = buffer[Math.floor(i * ratio)];
     return result;
   }
 
@@ -122,6 +206,8 @@ export default function Home() {
     };
   }
 
+  // --- Connexió amb Gemini Live ---
+
   async function connect() {
     const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
     if (!apiKey) {
@@ -140,7 +226,7 @@ export default function Home() {
           setup: {
             model: `models/${MODEL_NAME}`,
             generationConfig: { responseModalities: ["AUDIO"] },
-            systemInstruction: { parts: [{ text: systemPrompt(lang) }] },
+            systemInstruction: { parts: [{ text: systemPrompt(lang, profileRef.current) }] },
             inputAudioTranscription: {},
             outputAudioTranscription: {},
           },
@@ -175,12 +261,8 @@ export default function Home() {
         }
       }
 
-      if (sc.inputTranscription?.text) {
-        currentUserTextRef.current += sc.inputTranscription.text;
-      }
-      if (sc.outputTranscription?.text) {
-        currentAiTextRef.current += sc.outputTranscription.text;
-      }
+      if (sc.inputTranscription?.text) currentUserTextRef.current += sc.inputTranscription.text;
+      if (sc.outputTranscription?.text) currentAiTextRef.current += sc.outputTranscription.text;
 
       if (sc.turnComplete) {
         const userText = currentUserTextRef.current.trim();
@@ -222,14 +304,41 @@ export default function Home() {
       const pcm16 = floatTo16BitPCM(down);
       const b64 = base64FromInt16(pcm16);
       wsRef.current.send(
-        JSON.stringify({
-          realtimeInput: { audio: { data: b64, mimeType: "audio/pcm;rate=16000" } },
-        })
+        JSON.stringify({ realtimeInput: { audio: { data: b64, mimeType: "audio/pcm;rate=16000" } } })
       );
     };
 
     source.connect(processor);
     processor.connect(ctx.destination);
+  }
+
+  async function saveSession() {
+    const uid = auth.currentUser?.uid;
+    const msgs = messagesRef.current;
+    if (!uid || msgs.length === 0) return;
+
+    try {
+      await addDoc(collection(db, "users", uid, "sessions"), {
+        lang,
+        messages: msgs,
+        createdAt: serverTimestamp(),
+      });
+
+      // Memòria senzilla: guardem un resum cru de la darrera conversa
+      // (no és un resum intel·ligent, però dona continuïtat d'un dia per l'altre).
+      const transcript = msgs.map((m) => `${m.role === "user" ? "Ella" : "IA"}: ${m.text}`).join(" / ");
+      const trimmed = transcript.slice(-3000);
+
+      // Si durant la conversa ha dit el seu nom i encara no el teníem, mira de detectar-lo
+      // de manera molt senzilla (opcional, es pot ajustar sempre a mà des de Firestore).
+      await setDoc(
+        doc(db, "users", uid),
+        { notes: trimmed, updatedAt: serverTimestamp() },
+        { merge: true }
+      );
+    } catch (err) {
+      console.error("Error guardant la sessió:", err);
+    }
   }
 
   function disconnect() {
@@ -239,7 +348,10 @@ export default function Home() {
     inputCtxRef.current?.close();
     micStreamRef.current?.getTracks().forEach((t) => t.stop());
     stopPlayback();
-    setStatus("idle");
+    setStatus((prev) => {
+      if (prev !== "idle") saveSession();
+      return "idle";
+    });
   }
 
   function toggleConnection() {
@@ -253,28 +365,84 @@ export default function Home() {
     status === "listening" ? "T'escolto..." :
     "Parlant...";
 
+  // --- Pantalla de login/registre ---
+
+  if (authLoading) {
+    return <div className="app-shell" />;
+  }
+
+  if (!user) {
+    return (
+      <div className="app-shell" style={{ justifyContent: "center", padding: 24 }}>
+        <h1 style={{ fontFamily: "Fraunces, serif", fontSize: 28, marginBottom: 8 }}>Chiacchiera</h1>
+        <form onSubmit={handleAuth} style={{ display: "flex", flexDirection: "column", gap: 10, maxWidth: 320 }}>
+          {authMode === "signup" && (
+            <input
+              placeholder="El teu nom"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              style={{ padding: 10, borderRadius: 8, border: "1px solid rgba(242,237,226,0.2)", background: "#1c322b", color: "#f2ede2" }}
+            />
+          )}
+          <input
+            type="email"
+            placeholder="Email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            style={{ padding: 10, borderRadius: 8, border: "1px solid rgba(242,237,226,0.2)", background: "#1c322b", color: "#f2ede2" }}
+          />
+          <input
+            type="password"
+            placeholder="Contrasenya"
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            style={{ padding: 10, borderRadius: 8, border: "1px solid rgba(242,237,226,0.2)", background: "#1c322b", color: "#f2ede2" }}
+          />
+          {authError && <p style={{ color: "#c96a4d", fontSize: 13 }}>{authError}</p>}
+          <button type="submit" className="send" style={{ width: "100%", borderRadius: 8, padding: 10 }}>
+            {authMode === "signup" ? "Crear compte" : "Entrar"}
+          </button>
+        </form>
+        <button
+          type="button"
+          onClick={() => setAuthMode(authMode === "signup" ? "login" : "signup")}
+          style={{ marginTop: 14, background: "none", border: "none", color: "#d9a441", cursor: "pointer", fontSize: 13 }}
+        >
+          {authMode === "signup" ? "Ja tens compte? Entra" : "Encara no tens compte? Registra't"}
+        </button>
+      </div>
+    );
+  }
+
+  // --- App principal ---
+
   return (
     <div className="app-shell">
-      <div className="header">
-        <h1>Chiacchiera</h1>
-        <p>
-          Conversa en directe en {LANG_LABEL[lang]}.{" "}
-          <select
-            value={lang}
-            disabled={status !== "idle"}
-            onChange={(e) => setLang(e.target.value as Lang)}
-            style={{
-              marginLeft: 8,
-              background: "transparent",
-              color: "inherit",
-              border: "none",
-              borderBottom: "1px solid rgba(242,237,226,0.3)",
-            }}
-          >
-            <option value="it">Italià</option>
-            <option value="en">Anglès</option>
-          </select>
-        </p>
+      <div className="header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+        <div>
+          <h1>Chiacchiera</h1>
+          <p>
+            Conversa en directe en {LANG_LABEL[lang]}.{" "}
+            <select
+              value={lang}
+              disabled={status !== "idle"}
+              onChange={(e) => setLang(e.target.value as Lang)}
+              style={{ marginLeft: 8, background: "transparent", color: "inherit", border: "none", borderBottom: "1px solid rgba(242,237,226,0.3)" }}
+            >
+              <option value="it">Italià</option>
+              <option value="en">Anglès</option>
+            </select>
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={handleLogout}
+          style={{ background: "none", border: "none", color: "rgba(242,237,226,0.5)", fontSize: 13, cursor: "pointer" }}
+        >
+          Surt
+        </button>
       </div>
 
       <div className="thread" ref={threadRef}>
