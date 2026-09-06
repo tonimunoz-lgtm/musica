@@ -19,6 +19,7 @@ html, body {
   color: var(--paper);
   font-family: 'Inter', system-ui, sans-serif;
   height: 100%;
+  overscroll-behavior-y: none;
 }
 
 .stem {
