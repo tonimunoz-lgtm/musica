@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { doc, getDoc, setDoc, collection, addDoc, serverTimestamp } from "firebase/firestore";
-import { auth, db } from "@/lib/firebase";
+import { doc, setDoc, collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import { useLiveSession } from "@/lib/useLiveSession";
-import ProfileModal, { type Voice } from "@/components/ProfileModal";
+import type { Voice } from "@/components/ProfileModal";
 import type { User } from "firebase/auth";
 
 type Lang = "it" | "en";
@@ -38,12 +38,22 @@ Regles de correcció:
 - Sona natural: pauses, interjeccions, humor suau. Mai robòtic.`;
 }
 
-export default function ConversaMode({ user, onBack }: { user: User; onBack: () => void }) {
+export default function ConversaMode({
+  user,
+  profile,
+  onProfileUpdate,
+  onOpenProfile,
+  onBack,
+}: {
+  user: User;
+  profile: Profile;
+  onProfileUpdate: (p: Profile) => void;
+  onOpenProfile: () => void;
+  onBack: () => void;
+}) {
   const [lang, setLang] = useState<Lang>("it");
   const [messages, setMessages] = useState<Message[]>([]);
   const messagesRef = useRef<Message[]>([]);
-  const [profile, setProfile] = useState<Profile>({ name: "", notes: "", voice: "female" });
-  const [showProfile, setShowProfile] = useState(false);
   const threadRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -53,16 +63,6 @@ export default function ConversaMode({ user, onBack }: { user: User; onBack: () 
   useEffect(() => {
     threadRef.current?.scrollTo({ top: threadRef.current.scrollHeight, behavior: "smooth" });
   }, [messages]);
-
-  useEffect(() => {
-    (async () => {
-      const snap = await getDoc(doc(db, "users", user.uid));
-      if (snap.exists()) {
-        const data = snap.data();
-        setProfile({ name: data.name ?? "", notes: data.notes ?? "", voice: (data.voice as Voice) ?? "female" });
-      }
-    })();
-  }, [user.uid]);
 
   async function summarizeProfile(previousNotes: string, transcript: string): Promise<string> {
     const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
@@ -106,7 +106,7 @@ Retorna NOMÉS la fitxa actualitzada.`;
       const transcript = msgs.map((m) => `${m.role === "user" ? "Ella" : "IA"}: ${m.text}`).join("\n");
       const updatedNotes = await summarizeProfile(profile.notes, transcript);
       await setDoc(doc(db, "users", user.uid), { notes: updatedNotes, updatedAt: serverTimestamp() }, { merge: true });
-      setProfile((prev) => ({ ...prev, notes: updatedNotes }));
+      onProfileUpdate({ ...profile, notes: updatedNotes });
     } catch (err) {
       console.error("Error guardant la sessió:", err);
     }
@@ -165,7 +165,7 @@ Retorna NOMÉS la fitxa actualitzada.`;
         </div>
         <button
           type="button"
-          onClick={() => setShowProfile(true)}
+          onClick={onOpenProfile}
           style={{ background: "none", border: "none", color: "rgba(242,237,226,0.5)", fontSize: 13, cursor: "pointer" }}
         >
           Perfil
@@ -198,15 +198,6 @@ Retorna NOMÉS la fitxa actualitzada.`;
         </button>
         <span style={{ marginLeft: 12, fontSize: 14, opacity: 0.7 }}>{statusLabel}</span>
       </div>
-
-      {showProfile && (
-        <ProfileModal
-          user={user}
-          profile={profile}
-          onClose={() => setShowProfile(false)}
-          onSaved={(p) => setProfile(p)}
-        />
-      )}
     </div>
   );
 }
