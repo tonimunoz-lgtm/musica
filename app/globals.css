@@ -1,13 +1,49 @@
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap');
 
 :root {
-  --ink: #12211d;
-  --ink-soft: #1c322b;
-  --paper: #f2ede2;
-  --gold: #d9a441;
-  --gold-soft: #e8c98a;
-  --leaf: #6f8f6a;
-  --correction: #c96a4d;
+  --bg: #F4F6FB;
+  --surface: #FFFFFF;
+  --surface-tint: #EEF1FA;
+  --ink: #161B33;
+  --ink-soft: #6B7385;
+  --border: #E2E6F0;
+
+  /* Accent per defecte (pantalla de login / selecció de mode) */
+  --accent: #2E6BFF;
+  --accent-2: #22C3A6;
+  --warm: #FF6B57;
+
+  --radius-lg: 22px;
+  --radius-md: 14px;
+  --radius-pill: 999px;
+  --shadow-sm: 0 2px 10px rgba(22, 27, 51, 0.06);
+  --shadow-md: 0 10px 28px rgba(22, 27, 51, 0.10);
+}
+
+/* Tema "Nit": el fosc original, com a alternativa opcional al Perfil */
+[data-theme="nit"] {
+  --bg: #12211d;
+  --surface: #1c322b;
+  --surface-tint: #1c322b;
+  --ink: #f2ede2;
+  --ink-soft: rgba(242, 237, 226, 0.6);
+  --border: rgba(242, 237, 226, 0.15);
+  --accent: #d9a441;
+  --accent-2: #d9a441;
+  --warm: #c96a4d;
+  --shadow-sm: none;
+  --shadow-md: none;
+}
+
+/* Cada mode tenyeix l'app amb el seu propi accent, inspirat en la seva icona
+   — només al tema "Aurora"; a "Nit" es manté el daurat clàssic per a tots dos. */
+:root:not([data-theme="nit"]) .app-shell.conversa {
+  --accent: #2E6BFF;
+  --accent-2: #22C3A6;
+}
+:root:not([data-theme="nit"]) .app-shell.traductor {
+  --accent: #6C4CF1;
+  --accent-2: #3B82F6;
 }
 
 * { box-sizing: border-box; }
@@ -15,22 +51,12 @@
 html, body {
   margin: 0;
   padding: 0;
-  background: var(--ink);
-  color: var(--paper);
+  background: var(--bg);
+  color: var(--ink);
   font-family: 'Inter', system-ui, sans-serif;
   height: 100%;
   overflow: hidden;
   overscroll-behavior-y: none;
-}
-
-.stem {
-  position: absolute;
-  left: 28px;
-  top: 0;
-  bottom: 0;
-  width: 2px;
-  background: linear-gradient(to bottom, transparent, var(--leaf), transparent);
-  opacity: 0.5;
 }
 
 .app-shell {
@@ -41,25 +67,32 @@ html, body {
   display: flex;
   flex-direction: column;
   position: relative;
+  background: var(--bg);
 }
 
 .header {
-  padding: 24px 20px 16px;
-  border-bottom: 1px solid rgba(242, 237, 226, 0.08);
+  padding: 20px 20px 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
 }
 
 .header h1 {
-  font-family: 'Fraunces', serif;
+  font-family: 'Space Grotesk', sans-serif;
   font-weight: 600;
-  font-size: 28px;
+  font-size: 26px;
   margin: 0 0 4px;
   letter-spacing: -0.01em;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  display: inline-block;
 }
 
 .header p {
   margin: 0;
   font-size: 14px;
-  color: rgba(242, 237, 226, 0.6);
+  color: var(--ink-soft);
 }
 
 .thread {
@@ -70,26 +103,29 @@ html, body {
   display: flex;
   flex-direction: column;
   gap: 14px;
+  background: var(--bg);
 }
 
 .msg {
   max-width: 82%;
   padding: 12px 16px;
-  border-radius: 14px;
+  border-radius: var(--radius-md);
   line-height: 1.45;
   font-size: 15px;
 }
 
 .msg.ai {
   align-self: flex-start;
-  background: var(--ink-soft);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
   border-top-left-radius: 4px;
 }
 
 .msg.user {
   align-self: flex-end;
-  background: var(--gold);
-  color: var(--ink);
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: #fff;
   border-top-right-radius: 4px;
 }
 
@@ -97,13 +133,14 @@ html, body {
   align-self: flex-start;
   max-width: 82%;
   font-size: 13px;
-  color: var(--correction);
+  color: var(--warm);
   padding: 2px 4px 8px;
 }
 
 .composer {
-  padding: 16px 20px 24px;
-  border-top: 1px solid rgba(242, 237, 226, 0.08);
+  padding: 14px 20px 22px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
   display: flex;
   gap: 10px;
   align-items: center;
@@ -111,23 +148,23 @@ html, body {
 
 .composer input {
   flex: 1;
-  background: var(--ink-soft);
-  border: 1px solid rgba(242, 237, 226, 0.12);
-  border-radius: 999px;
+  background: var(--surface-tint);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
   padding: 12px 18px;
-  color: var(--paper);
+  color: var(--ink);
   font-size: 15px;
   font-family: inherit;
 }
 
 .composer input:focus {
-  outline: 2px solid var(--gold-soft);
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
 button.mic, button.send {
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   width: 44px;
   height: 44px;
   display: grid;
@@ -137,22 +174,58 @@ button.mic, button.send {
 }
 
 button.mic {
-  background: var(--ink-soft);
-  color: var(--paper);
-  border: 1px solid rgba(242, 237, 226, 0.16);
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: #fff;
+  box-shadow: var(--shadow-md);
+  transition: box-shadow 0.2s ease;
 }
 
 button.mic.listening {
-  background: var(--correction);
-  color: var(--paper);
+  animation: pulse-ring 1.6s ease-out infinite;
+}
+
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 rgba(46, 107, 255, 0.35), var(--shadow-md); }
+  70% { box-shadow: 0 0 0 14px rgba(46, 107, 255, 0), var(--shadow-md); }
+  100% { box-shadow: 0 0 0 0 rgba(46, 107, 255, 0), var(--shadow-md); }
 }
 
 button.send {
-  background: var(--gold);
-  color: var(--ink);
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: #fff;
 }
 
 button.send:disabled {
-  opacity: 0.4;
+  opacity: 0.35;
   cursor: default;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button.mic.listening { animation: none; }
+}
+
+.mode-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: 20px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.mode-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
+}
+
+.mode-card:active {
+  transform: translateY(0);
 }
