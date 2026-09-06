@@ -1,6 +1,5 @@
 "use client";
 
-
 import { useEffect, useRef, useState } from "react";
 import { useLiveSession } from "@/lib/useLiveSession";
 import type { Voice } from "@/components/ProfileModal";
@@ -20,19 +19,22 @@ function nameOf(code: LangCode) {
   return LANGS.find((l) => l.code === code)?.name ?? code;
 }
 
-function systemPrompt(inputLang: LangCode, outputLang: LangCode) {
-  const from = nameOf(inputLang);
-  const to = nameOf(outputLang);
-  return `Ets un traductor simultani en veu alta, no una parella de conversa.
+function systemPrompt(langA: LangCode, langB: LangCode) {
+  const a = nameOf(langA);
+  const b = nameOf(langB);
+  return `Ets un traductor simultani bidireccional en veu alta, no una parella de conversa. Aquesta eina s'usa per parlar amb algú que parla un idioma diferent (per exemple, un viatge): a vegades parlarà la persona que porta el mòbil, a vegades l'altra persona.
 
-La persona parlarà en ${from}. La teva única feina és traduir TOT el que digui a ${to}, de manera natural i fluida.
+Els dos idiomes d'aquesta conversa són ${a} i ${b}.
+
+La teva feina, per cada frase que sentis:
+1. Detecta automàticament si està dita en ${a} o en ${b}.
+2. Tradueix-la SEMPRE cap a l'ALTRE idioma dels dos (si l'has sentida en ${a}, digues-la en ${b}; si l'has sentida en ${b}, digues-la en ${a}).
 
 Regles estrictes:
 - NO conversis, NO responguis preguntes, NO facis comentaris ni afegeixis res de collita pròpia.
-- Digues NOMÉS la traducció, en veu alta, en ${to}.
-- Si la persona parla en un idioma diferent del ${from}, tradueix igualment el que hagi dit a ${to}.
-- Si la frase és massa curta o ambigua per traduir-la sola, tradueix-la tal com la sentiries dir de manera natural en aquest context.
-- No repeteixis la frase original, no la diguis en veu alta, només la traducció.`;
+- Digues NOMÉS la traducció, en veu alta, mai la frase original.
+- Si per algun motiu la frase no és clarament en cap dels dos idiomes, tradueix-la cap a ${a} per defecte.
+- Si la frase és curta o ambigua, tradueix-la tal com la sentiries dir de manera natural en aquest context.`;
 }
 
 const VOICE_NAME: Record<Voice, string> = { female: "Kore", male: "Puck" };
@@ -48,8 +50,8 @@ export default function TraductorMode({
   onOpenProfile: () => void;
   onBack: () => void;
 }) {
-  const [inputLang, setInputLang] = useState<LangCode>("ca");
-  const [outputLang, setOutputLang] = useState<LangCode>("it");
+  const [langA, setLangA] = useState<LangCode>("es");
+  const [langB, setLangB] = useState<LangCode>("en");
   const [pairs, setPairs] = useState<Pair[]>([]);
   const threadRef = useRef<HTMLDivElement>(null);
 
@@ -58,7 +60,7 @@ export default function TraductorMode({
   }, [pairs]);
 
   const { status, toggleConnection } = useLiveSession({
-    systemInstruction: systemPrompt(inputLang, outputLang),
+    systemInstruction: systemPrompt(langA, langB),
     voiceName: VOICE_NAME[profile.voice],
     onTurn: (userText, aiText) => {
       if (userText || aiText) {
@@ -87,11 +89,11 @@ export default function TraductorMode({
           <h1>Traductor</h1>
           <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 6, flexWrap: "wrap" }}>
             <label style={{ fontSize: 13, opacity: 0.7 }}>
-              Parlo en{" "}
+              Idioma 1{" "}
               <select
-                value={inputLang}
+                value={langA}
                 disabled={status !== "idle"}
-                onChange={(e) => setInputLang(e.target.value as LangCode)}
+                onChange={(e) => setLangA(e.target.value as LangCode)}
                 style={{ background: "transparent", color: "inherit", border: "none", borderBottom: "1px solid rgba(242,237,226,0.3)" }}
               >
                 {LANGS.map((l) => (
@@ -99,13 +101,13 @@ export default function TraductorMode({
                 ))}
               </select>
             </label>
-            <span style={{ opacity: 0.4 }}>→</span>
+            <span style={{ opacity: 0.4 }}>⇄</span>
             <label style={{ fontSize: 13, opacity: 0.7 }}>
-              Tradueix a{" "}
+              Idioma 2{" "}
               <select
-                value={outputLang}
+                value={langB}
                 disabled={status !== "idle"}
-                onChange={(e) => setOutputLang(e.target.value as LangCode)}
+                onChange={(e) => setLangB(e.target.value as LangCode)}
                 style={{ background: "transparent", color: "inherit", border: "none", borderBottom: "1px solid rgba(242,237,226,0.3)" }}
               >
                 {LANGS.map((l) => (
@@ -114,6 +116,10 @@ export default function TraductorMode({
               </select>
             </label>
           </div>
+          <p style={{ fontSize: 12, opacity: 0.5, marginTop: 6, marginBottom: 0 }}>
+            Detecta sol quin dels dos idiomes parles i tradueix cap a l'altre — no cal que ho canviïs
+            durant la conversa.
+          </p>
         </div>
         <button
           type="button"
@@ -127,8 +133,8 @@ export default function TraductorMode({
       <div className="thread" ref={threadRef}>
         {pairs.length === 0 && (
           <p style={{ opacity: 0.5, fontSize: 14 }}>
-            Tria els idiomes, prem el micròfon, i comença a parlar. Cada frase que diguis es
-            traduirà en veu alta i quedarà escrita aquí a sota.
+            Tria els dos idiomes de la conversa, prem el micròfon, i parleu — tant si parles tu com
+            si parla l'altra persona, es traduirà sol cap a l'idioma que toqui.
           </p>
         )}
         {pairs.map((p, i) => (
