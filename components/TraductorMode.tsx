@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useLiveSession } from "@/lib/useLiveSession";
-import type { User } from "firebase/auth";
+import type { Voice } from "@/components/ProfileModal";
 
 type LangCode = "ca" | "es" | "it" | "en" | "fr" | "de";
 
@@ -34,9 +34,19 @@ Regles estrictes:
 - No repeteixis la frase original, no la diguis en veu alta, només la traducció.`;
 }
 
+const VOICE_NAME: Record<Voice, string> = { female: "Kore", male: "Puck" };
+
 type Pair = { original: string; translated: string };
 
-export default function TraductorMode({ onBack }: { onBack: () => void }) {
+export default function TraductorMode({
+  profile,
+  onOpenProfile,
+  onBack,
+}: {
+  profile: { voice: Voice };
+  onOpenProfile: () => void;
+  onBack: () => void;
+}) {
   const [inputLang, setInputLang] = useState<LangCode>("ca");
   const [outputLang, setOutputLang] = useState<LangCode>("it");
   const [pairs, setPairs] = useState<Pair[]>([]);
@@ -48,7 +58,7 @@ export default function TraductorMode({ onBack }: { onBack: () => void }) {
 
   const { status, toggleConnection } = useLiveSession({
     systemInstruction: systemPrompt(inputLang, outputLang),
-    voiceName: "Kore",
+    voiceName: VOICE_NAME[profile.voice],
     onTurn: (userText, aiText) => {
       if (userText || aiText) {
         setPairs((prev) => [...prev, { original: userText, translated: aiText }]);
@@ -64,44 +74,53 @@ export default function TraductorMode({ onBack }: { onBack: () => void }) {
 
   return (
     <div className="app-shell">
-      <div className="header">
+      <div className="header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+        <div>
+          <button
+            type="button"
+            onClick={onBack}
+            style={{ background: "none", border: "none", color: "rgba(242,237,226,0.5)", fontSize: 13, cursor: "pointer", padding: 0, marginBottom: 6 }}
+          >
+            ‹ Modes
+          </button>
+          <h1>Traductor</h1>
+          <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 6, flexWrap: "wrap" }}>
+            <label style={{ fontSize: 13, opacity: 0.7 }}>
+              Parlo en{" "}
+              <select
+                value={inputLang}
+                disabled={status !== "idle"}
+                onChange={(e) => setInputLang(e.target.value as LangCode)}
+                style={{ background: "transparent", color: "inherit", border: "none", borderBottom: "1px solid rgba(242,237,226,0.3)" }}
+              >
+                {LANGS.map((l) => (
+                  <option key={l.code} value={l.code}>{l.label}</option>
+                ))}
+              </select>
+            </label>
+            <span style={{ opacity: 0.4 }}>→</span>
+            <label style={{ fontSize: 13, opacity: 0.7 }}>
+              Tradueix a{" "}
+              <select
+                value={outputLang}
+                disabled={status !== "idle"}
+                onChange={(e) => setOutputLang(e.target.value as LangCode)}
+                style={{ background: "transparent", color: "inherit", border: "none", borderBottom: "1px solid rgba(242,237,226,0.3)" }}
+              >
+                {LANGS.map((l) => (
+                  <option key={l.code} value={l.code}>{l.label}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+        </div>
         <button
           type="button"
-          onClick={onBack}
-          style={{ background: "none", border: "none", color: "rgba(242,237,226,0.5)", fontSize: 13, cursor: "pointer", padding: 0, marginBottom: 6 }}
+          onClick={onOpenProfile}
+          style={{ background: "none", border: "none", color: "rgba(242,237,226,0.5)", fontSize: 13, cursor: "pointer" }}
         >
-          ‹ Modes
+          Perfil
         </button>
-        <h1>Traductor</h1>
-        <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 6, flexWrap: "wrap" }}>
-          <label style={{ fontSize: 13, opacity: 0.7 }}>
-            Parlo en{" "}
-            <select
-              value={inputLang}
-              disabled={status !== "idle"}
-              onChange={(e) => setInputLang(e.target.value as LangCode)}
-              style={{ background: "transparent", color: "inherit", border: "none", borderBottom: "1px solid rgba(242,237,226,0.3)" }}
-            >
-              {LANGS.map((l) => (
-                <option key={l.code} value={l.code}>{l.label}</option>
-              ))}
-            </select>
-          </label>
-          <span style={{ opacity: 0.4 }}>→</span>
-          <label style={{ fontSize: 13, opacity: 0.7 }}>
-            Tradueix a{" "}
-            <select
-              value={outputLang}
-              disabled={status !== "idle"}
-              onChange={(e) => setOutputLang(e.target.value as LangCode)}
-              style={{ background: "transparent", color: "inherit", border: "none", borderBottom: "1px solid rgba(242,237,226,0.3)" }}
-            >
-              {LANGS.map((l) => (
-                <option key={l.code} value={l.code}>{l.label}</option>
-              ))}
-            </select>
-          </label>
-        </div>
       </div>
 
       <div className="thread" ref={threadRef}>
