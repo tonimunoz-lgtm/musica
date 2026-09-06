@@ -9,11 +9,13 @@ import {
   type User,
 } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import ConversaMode from "@/components/ConversaMode";
 import TraductorMode from "@/components/TraductorMode";
+import ProfileModal, { type Voice } from "@/components/ProfileModal";
 
 type Mode = "conversa" | "traductor" | null;
+type Profile = { name: string; notes: string; voice: Voice };
 
 export default function Home() {
   const [user, setUser] = useState<User | null>(null);
@@ -24,11 +26,20 @@ export default function Home() {
   const [name, setName] = useState("");
   const [authError, setAuthError] = useState<string | null>(null);
   const [mode, setMode] = useState<Mode>(null);
+  const [profile, setProfile] = useState<Profile>({ name: "", notes: "", voice: "female" });
+  const [showProfile, setShowProfile] = useState(false);
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (u) => {
+    const unsub = onAuthStateChanged(auth, async (u) => {
       setUser(u);
       setAuthLoading(false);
+      if (u) {
+        const snap = await getDoc(doc(db, "users", u.uid));
+        if (snap.exists()) {
+          const data = snap.data();
+          setProfile({ name: data.name ?? "", notes: data.notes ?? "", voice: (data.voice as Voice) ?? "female" });
+        }
+      }
     });
     return unsub;
   }, []);
@@ -107,11 +118,51 @@ export default function Home() {
     );
   }
 
-  if (mode === "conversa") return <ConversaMode user={user} onBack={() => setMode(null)} />;
-  if (mode === "traductor") return <TraductorMode onBack={() => setMode(null)} />;
+  const profileButton = (
+    <button
+      type="button"
+      onClick={() => setShowProfile(true)}
+      style={{ background: "none", border: "none", color: "rgba(242,237,226,0.5)", fontSize: 13, cursor: "pointer" }}
+    >
+      Perfil
+    </button>
+  );
+
+  const profileModal = showProfile && (
+    <ProfileModal
+      user={user}
+      profile={profile}
+      onClose={() => setShowProfile(false)}
+      onSaved={(p) => setProfile(p)}
+    />
+  );
+
+  if (mode === "conversa") {
+    return (
+      <>
+        <ConversaMode
+          user={user}
+          profile={profile}
+          onProfileUpdate={(p) => setProfile(p)}
+          onOpenProfile={() => setShowProfile(true)}
+          onBack={() => setMode(null)}
+        />
+        {profileModal}
+      </>
+    );
+  }
+  if (mode === "traductor") {
+    return (
+      <>
+        <TraductorMode profile={profile} onOpenProfile={() => setShowProfile(true)} onBack={() => setMode(null)} />
+        {profileModal}
+      </>
+    );
+  }
 
   return (
     <div className="app-shell" style={{ justifyContent: "center", alignItems: "center", padding: 24 }}>
+      <div style={{ position: "absolute", top: 16, right: 16 }}>{profileButton}</div>
       <h1 style={{ fontFamily: "Fraunces, serif", fontSize: 24, marginBottom: 24, textAlign: "center" }}>
         Què vols fer avui?
       </h1>
@@ -138,6 +189,7 @@ export default function Home() {
       >
         Surt
       </button>
+      {profileModal}
     </div>
   );
 }
