@@ -19,6 +19,7 @@ html, body {
   color: var(--paper);
   font-family: 'Inter', system-ui, sans-serif;
   height: 100%;
+  overflow: hidden;
   overscroll-behavior-y: none;
 }
 
@@ -63,6 +64,7 @@ html, body {
 
 .thread {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   padding: 20px 20px 12px;
   display: flex;
