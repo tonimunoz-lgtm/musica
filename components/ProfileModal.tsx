@@ -20,7 +20,8 @@ import {
 import { db } from "@/lib/firebase";
 
 export type Voice = "female" | "male";
-export type Profile = { name: string; notes: string; voice: Voice };
+export type Theme = "aurora" | "nit";
+export type Profile = { name: string; notes: string; voice: Voice; theme: Theme };
 
 type Feedback = { text: string; ok: boolean } | null;
 
@@ -37,6 +38,7 @@ export default function ProfileModal({
 }) {
   const [name, setName] = useState(profile.name);
   const [voice, setVoice] = useState<Voice>(profile.voice ?? "female");
+  const [theme, setTheme] = useState<Theme>(profile.theme ?? "aurora");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
 
@@ -50,9 +52,9 @@ export default function ProfileModal({
     setBusy(true);
     setProfileFeedback(null);
     try {
-      await setDoc(doc(db, "users", user.uid), { name, voice }, { merge: true });
-      onSaved({ ...profile, name, voice });
-      setProfileFeedback({ text: "✓ Nom i veu desats correctament.", ok: true });
+      await setDoc(doc(db, "users", user.uid), { name, voice, theme }, { merge: true });
+      onSaved({ ...profile, name, voice, theme });
+      setProfileFeedback({ text: "✓ Canvis desats correctament.", ok: true });
     } catch (err: any) {
       setProfileFeedback({ text: err.message ?? "Error desant els canvis", ok: false });
     } finally {
@@ -110,7 +112,7 @@ export default function ProfileModal({
   function FeedbackLine({ feedback }: { feedback: Feedback }) {
     if (!feedback) return null;
     return (
-      <p style={{ color: feedback.ok ? "#6f8f6a" : "#c96a4d", fontSize: 13, marginTop: 8, marginBottom: 0 }}>
+      <p style={{ color: feedback.ok ? "#1f9d6f" : "var(--warm)", fontSize: 13, marginTop: 8, marginBottom: 0 }}>
         {feedback.text}
       </p>
     );
@@ -133,12 +135,12 @@ export default function ProfileModal({
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          background: "#1c322b",
+          background: "var(--surface)",
           borderRadius: 16,
           padding: 24,
           maxWidth: 380,
           width: "100%",
-          color: "#f2ede2",
+          color: "var(--ink)",
           maxHeight: "85vh",
           overflowY: "auto",
         }}
@@ -154,12 +156,18 @@ export default function ProfileModal({
           <option value="male">Masculina</option>
         </select>
 
+        <label style={{ fontSize: 13, opacity: 0.7, marginTop: 12, display: "block" }}>Tema</label>
+        <select value={theme} onChange={(e) => setTheme(e.target.value as Theme)} style={inputStyle}>
+          <option value="aurora">Aurora (clar)</option>
+          <option value="nit">Nit (fosc)</option>
+        </select>
+
         <button type="button" disabled={busy} onClick={saveProfile} style={{ ...buttonStyle, marginTop: 12 }}>
-          Desar nom i veu
+          Desar canvis
         </button>
         <FeedbackLine feedback={profileFeedback} />
 
-        <hr style={{ margin: "20px 0", borderColor: "rgba(242,237,226,0.1)" }} />
+        <hr style={{ margin: "20px 0", borderColor: "var(--border)" }} />
 
         <h3 style={{ fontSize: 15, marginBottom: 8 }}>Canviar contrasenya</h3>
         <input
@@ -186,7 +194,7 @@ export default function ProfileModal({
         </button>
         <FeedbackLine feedback={passwordFeedback} />
 
-        <hr style={{ margin: "20px 0", borderColor: "rgba(242,237,226,0.1)" }} />
+        <hr style={{ margin: "20px 0", borderColor: "var(--border)" }} />
 
         <h3 style={{ fontSize: 15, marginBottom: 8 }}>Historial de converses</h3>
         <div style={{ display: "flex", gap: 8 }}>
@@ -198,7 +206,7 @@ export default function ProfileModal({
                 deleteHistory("keepLastMonth");
               }
             }}
-            style={{ ...buttonStyle, flex: 1, background: "#1c322b", border: "1px solid rgba(242,237,226,0.2)", color: "#f2ede2" }}
+            style={{ ...buttonStyle, flex: 1, background: "var(--surface)", border: "1px solid var(--border)", color: "var(--ink)" }}
           >
             Esborra, deixa l'últim mes
           </button>
@@ -210,7 +218,7 @@ export default function ProfileModal({
                 deleteHistory("all");
               }
             }}
-            style={{ ...buttonStyle, flex: 1, background: "#c96a4d" }}
+            style={{ ...buttonStyle, flex: 1, background: "var(--warm)" }}
           >
             Esborra-ho tot
           </button>
@@ -220,7 +228,7 @@ export default function ProfileModal({
         <button
           type="button"
           onClick={onClose}
-          style={{ ...buttonStyle, marginTop: 20, background: "transparent", border: "1px solid rgba(242,237,226,0.2)", color: "#f2ede2" }}
+          style={{ ...buttonStyle, marginTop: 20, background: "transparent", border: "1px solid var(--border)", color: "var(--ink)" }}
         >
           Tancar
         </button>
@@ -233,9 +241,9 @@ const inputStyle: React.CSSProperties = {
   width: "100%",
   padding: 10,
   borderRadius: 8,
-  border: "1px solid rgba(242,237,226,0.2)",
-  background: "#12211d",
-  color: "#f2ede2",
+  border: "1px solid var(--border)",
+  background: "var(--surface-tint)",
+  color: "var(--ink)",
   fontSize: 14,
   marginTop: 4,
 };
@@ -245,8 +253,8 @@ const buttonStyle: React.CSSProperties = {
   padding: 10,
   borderRadius: 8,
   border: "none",
-  background: "#d9a441",
-  color: "#12211d",
+  background: "var(--accent)",
+  color: "#fff",
   fontWeight: 500,
   cursor: "pointer",
   fontSize: 14,
