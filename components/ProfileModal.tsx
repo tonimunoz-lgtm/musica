@@ -198,7 +198,7 @@ export default function ProfileModal({
                 deleteHistory("keepLastMonth");
               }
             }}
-            style={{ ...buttonStyle, flex: 1, background: "#1c322b", border: "1px solid rgba(242,237,226,0.2)" }}
+            style={{ ...buttonStyle, flex: 1, background: "#1c322b", border: "1px solid rgba(242,237,226,0.2)", color: "#f2ede2" }}
           >
             Esborra, deixa l'últim mes
           </button>
@@ -220,7 +220,7 @@ export default function ProfileModal({
         <button
           type="button"
           onClick={onClose}
-          style={{ ...buttonStyle, marginTop: 20, background: "transparent", border: "1px solid rgba(242,237,226,0.2)" }}
+          style={{ ...buttonStyle, marginTop: 20, background: "transparent", border: "1px solid rgba(242,237,226,0.2)", color: "#f2ede2" }}
         >
           Tancar
         </button>
