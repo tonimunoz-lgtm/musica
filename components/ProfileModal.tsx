@@ -22,6 +22,8 @@ import { db } from "@/lib/firebase";
 export type Voice = "female" | "male";
 export type Profile = { name: string; notes: string; voice: Voice };
 
+type Feedback = { text: string; ok: boolean } | null;
+
 export default function ProfileModal({
   user,
   profile,
@@ -37,19 +39,22 @@ export default function ProfileModal({
   const [voice, setVoice] = useState<Voice>(profile.voice ?? "female");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
-  const [message, setMessage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+
+  const [profileFeedback, setProfileFeedback] = useState<Feedback>(null);
+  const [passwordFeedback, setPasswordFeedback] = useState<Feedback>(null);
+  const [historyFeedback, setHistoryFeedback] = useState<Feedback>(null);
+
   const [busy, setBusy] = useState(false);
 
   async function saveProfile() {
     setBusy(true);
-    setError(null);
+    setProfileFeedback(null);
     try {
       await setDoc(doc(db, "users", user.uid), { name, voice }, { merge: true });
       onSaved({ ...profile, name, voice });
-      setMessage("Canvis desats.");
+      setProfileFeedback({ text: "✓ Nom i veu desats correctament.", ok: true });
     } catch (err: any) {
-      setError(err.message ?? "Error desant els canvis");
+      setProfileFeedback({ text: err.message ?? "Error desant els canvis", ok: false });
     } finally {
       setBusy(false);
     }
@@ -58,17 +63,19 @@ export default function ProfileModal({
   async function changePassword() {
     if (!user.email) return;
     setBusy(true);
-    setError(null);
-    setMessage(null);
+    setPasswordFeedback(null);
     try {
       const cred = EmailAuthProvider.credential(user.email, currentPassword);
       await reauthenticateWithCredential(user, cred);
       await updatePassword(user, newPassword);
       setCurrentPassword("");
       setNewPassword("");
-      setMessage("Contrasenya canviada correctament.");
+      setPasswordFeedback({ text: "✓ Contrasenya canviada correctament.", ok: true });
     } catch (err: any) {
-      setError(err.message ?? "Error canviant la contrasenya (comprova la contrasenya actual)");
+      setPasswordFeedback({
+        text: err.message ?? "Error canviant la contrasenya (comprova la contrasenya actual)",
+        ok: false,
+      });
     } finally {
       setBusy(false);
     }
@@ -76,8 +83,7 @@ export default function ProfileModal({
 
   async function deleteHistory(mode: "all" | "keepLastMonth") {
     setBusy(true);
-    setError(null);
-    setMessage(null);
+    setHistoryFeedback(null);
     try {
       const sessionsRef = collection(db, "users", user.uid, "sessions");
       let snap;
@@ -93,12 +99,21 @@ export default function ProfileModal({
         await setDoc(doc(db, "users", user.uid), { notes: "" }, { merge: true });
         onSaved({ ...profile, name, voice, notes: "" });
       }
-      setMessage(`Esborrades ${snap.docs.length} converses.`);
+      setHistoryFeedback({ text: `✓ Esborrades ${snap.docs.length} converses.`, ok: true });
     } catch (err: any) {
-      setError(err.message ?? "Error esborrant l'historial");
+      setHistoryFeedback({ text: err.message ?? "Error esborrant l'historial", ok: false });
     } finally {
       setBusy(false);
     }
+  }
+
+  function FeedbackLine({ feedback }: { feedback: Feedback }) {
+    if (!feedback) return null;
+    return (
+      <p style={{ color: feedback.ok ? "#6f8f6a" : "#c96a4d", fontSize: 13, marginTop: 8, marginBottom: 0 }}>
+        {feedback.text}
+      </p>
+    );
   }
 
   return (
@@ -131,11 +146,7 @@ export default function ProfileModal({
         <h2 style={{ fontFamily: "Fraunces, serif", fontSize: 22, marginTop: 0 }}>Perfil</h2>
 
         <label style={{ fontSize: 13, opacity: 0.7 }}>Nom</label>
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          style={inputStyle}
-        />
+        <input value={name} onChange={(e) => setName(e.target.value)} style={inputStyle} />
 
         <label style={{ fontSize: 13, opacity: 0.7, marginTop: 12, display: "block" }}>Veu de la IA</label>
         <select value={voice} onChange={(e) => setVoice(e.target.value as Voice)} style={inputStyle}>
@@ -146,6 +157,7 @@ export default function ProfileModal({
         <button type="button" disabled={busy} onClick={saveProfile} style={{ ...buttonStyle, marginTop: 12 }}>
           Desar nom i veu
         </button>
+        <FeedbackLine feedback={profileFeedback} />
 
         <hr style={{ margin: "20px 0", borderColor: "rgba(242,237,226,0.1)" }} />
 
@@ -172,6 +184,7 @@ export default function ProfileModal({
         >
           Canviar contrasenya
         </button>
+        <FeedbackLine feedback={passwordFeedback} />
 
         <hr style={{ margin: "20px 0", borderColor: "rgba(242,237,226,0.1)" }} />
 
@@ -202,14 +215,12 @@ export default function ProfileModal({
             Esborra-ho tot
           </button>
         </div>
-
-        {message && <p style={{ color: "#6f8f6a", fontSize: 13, marginTop: 12 }}>{message}</p>}
-        {error && <p style={{ color: "#c96a4d", fontSize: 13, marginTop: 12 }}>{error}</p>}
+        <FeedbackLine feedback={historyFeedback} />
 
         <button
           type="button"
           onClick={onClose}
-          style={{ ...buttonStyle, marginTop: 16, background: "transparent", border: "1px solid rgba(242,237,226,0.2)" }}
+          style={{ ...buttonStyle, marginTop: 20, background: "transparent", border: "1px solid rgba(242,237,226,0.2)" }}
         >
           Tancar
         </button>
