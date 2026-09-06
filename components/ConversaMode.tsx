@@ -1,16 +1,15 @@
 "use client";
 
-
 import { useEffect, useRef, useState } from "react";
 import { doc, setDoc, collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useLiveSession } from "@/lib/useLiveSession";
-import type { Voice } from "@/components/ProfileModal";
+import type { Voice, Theme } from "@/components/ProfileModal";
 import type { User } from "firebase/auth";
 
 type Lang = "it" | "en";
 type Message = { role: "user" | "ai"; text: string };
-type Profile = { name: string; notes: string; voice: Voice };
+type Profile = { name: string; notes: string; voice: Voice; theme: Theme };
 
 const LANG_LABEL: Record<Lang, string> = { it: "italià", en: "anglès" };
 const VOICE_NAME: Record<Voice, string> = { female: "Kore", male: "Puck" };
@@ -140,13 +139,13 @@ Retorna NOMÉS la fitxa actualitzada.`;
     "Parlant...";
 
   return (
-    <div className="app-shell">
+    <div className="app-shell conversa">
       <div className="header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <div>
           <button
             type="button"
             onClick={onBack}
-            style={{ background: "none", border: "none", color: "rgba(242,237,226,0.5)", fontSize: 13, cursor: "pointer", padding: 0, marginBottom: 6 }}
+            style={{ background: "none", border: "none", color: "var(--ink-soft)", fontSize: 13, cursor: "pointer", padding: 0, marginBottom: 6 }}
           >
             ‹ Modes
           </button>
@@ -157,7 +156,7 @@ Retorna NOMÉS la fitxa actualitzada.`;
               value={lang}
               disabled={status !== "idle"}
               onChange={(e) => setLang(e.target.value as Lang)}
-              style={{ marginLeft: 8, background: "transparent", color: "inherit", border: "none", borderBottom: "1px solid rgba(242,237,226,0.3)" }}
+              style={{ marginLeft: 8, background: "transparent", color: "inherit", border: "none", borderBottom: "1px solid var(--border)" }}
             >
               <option value="it">Italià</option>
               <option value="en">Anglès</option>
@@ -167,7 +166,7 @@ Retorna NOMÉS la fitxa actualitzada.`;
         <button
           type="button"
           onClick={onOpenProfile}
-          style={{ background: "none", border: "none", color: "rgba(242,237,226,0.5)", fontSize: 13, cursor: "pointer" }}
+          style={{ background: "none", border: "none", color: "var(--ink-soft)", fontSize: 13, cursor: "pointer" }}
         >
           Perfil
         </button>
