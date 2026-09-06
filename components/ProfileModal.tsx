@@ -180,7 +180,11 @@ export default function ProfileModal({
           <button
             type="button"
             disabled={busy}
-            onClick={() => deleteHistory("keepLastMonth")}
+            onClick={() => {
+              if (confirm("Segur que vols esborrar les converses de fa més d'un mes? No es pot desfer.")) {
+                deleteHistory("keepLastMonth");
+              }
+            }}
             style={{ ...buttonStyle, flex: 1, background: "#1c322b", border: "1px solid rgba(242,237,226,0.2)" }}
           >
             Esborra, deixa l'últim mes
