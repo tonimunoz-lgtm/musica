@@ -1,5 +1,6 @@
 "use client";
 
+
 import { useEffect, useState } from "react";
 import buildVersion from "@/lib/buildVersion.json";
 
