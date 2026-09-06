@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import UpdateBanner from "@/components/UpdateBanner";
 
 export const metadata: Metadata = {
   title: "Chiacchiera",
@@ -34,7 +35,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ca">
-      <body>{children}</body>
+      <body>
+        {children}
+        <UpdateBanner />
+      </body>
     </html>
   );
 }
