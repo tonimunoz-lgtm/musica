@@ -34,7 +34,8 @@ html, body {
 .app-shell {
   max-width: 640px;
   margin: 0 auto;
-  min-height: 100dvh;
+  height: 100dvh;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   position: relative;
