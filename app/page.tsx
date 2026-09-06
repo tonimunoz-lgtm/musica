@@ -10,10 +10,13 @@ import {
 } from "firebase/auth";
 import { doc, getDoc, setDoc, collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
+import ProfileModal from "@/components/ProfileModal";
 
 type Lang = "it" | "en";
 type Message = { role: "user" | "ai"; text: string };
-type Profile = { name: string; notes: string };
+type Voice = "female" | "male";
+type Profile = { name: string; notes: string; voice: Voice };
+const VOICE_NAME: Record<Voice, string> = { female: "Kore", male: "Puck" };
 
 const LANG_LABEL: Record<Lang, string> = { it: "italià", en: "anglès" };
 
@@ -56,8 +59,9 @@ export default function Home() {
   const [authError, setAuthError] = useState<string | null>(null);
 
   // Profile / memòria
-  const [profile, setProfile] = useState<Profile>({ name: "", notes: "" });
-  const profileRef = useRef<Profile>({ name: "", notes: "" });
+  const [profile, setProfile] = useState<Profile>({ name: "", notes: "", voice: "female" });
+  const profileRef = useRef<Profile>({ name: "", notes: "", voice: "female" });
+  const [showProfile, setShowProfile] = useState(false);
 
   // Conversa
   const [lang, setLang] = useState<Lang>("it");
@@ -106,7 +110,7 @@ export default function Home() {
       const snap = await getDoc(doc(db, "users", uid));
       if (snap.exists()) {
         const data = snap.data();
-        setProfile({ name: data.name ?? "", notes: data.notes ?? "" });
+        setProfile({ name: data.name ?? "", notes: data.notes ?? "", voice: (data.voice as Voice) ?? "female" });
       }
     } catch (err) {
       console.error("Error carregant el perfil:", err);
@@ -225,7 +229,14 @@ export default function Home() {
         JSON.stringify({
           setup: {
             model: `models/${MODEL_NAME}`,
-            generationConfig: { responseModalities: ["AUDIO"] },
+            generationConfig: {
+              responseModalities: ["AUDIO"],
+              speechConfig: {
+                voiceConfig: {
+                  prebuiltVoiceConfig: { voiceName: VOICE_NAME[profileRef.current.voice] },
+                },
+              },
+            },
             systemInstruction: { parts: [{ text: systemPrompt(lang, profileRef.current) }] },
             inputAudioTranscription: {},
             outputAudioTranscription: {},
@@ -482,6 +493,13 @@ Retorna NOMÉS la fitxa actualitzada (fusiona el que ja hi havia amb el que hagi
         </div>
         <button
           type="button"
+          onClick={() => setShowProfile(true)}
+          style={{ background: "none", border: "none", color: "rgba(242,237,226,0.5)", fontSize: 13, cursor: "pointer", marginRight: 12 }}
+        >
+          Perfil
+        </button>
+        <button
+          type="button"
           onClick={handleLogout}
           style={{ background: "none", border: "none", color: "rgba(242,237,226,0.5)", fontSize: 13, cursor: "pointer" }}
         >
@@ -515,6 +533,15 @@ Retorna NOMÉS la fitxa actualitzada (fusiona el que ja hi havia amb el que hagi
         </button>
         <span style={{ marginLeft: 12, fontSize: 14, opacity: 0.7 }}>{statusLabel}</span>
       </div>
+
+      {showProfile && (
+        <ProfileModal
+          user={user}
+          profile={profile}
+          onClose={() => setShowProfile(false)}
+          onSaved={(p) => setProfile(p)}
+        />
+      )}
     </div>
   );
 }
